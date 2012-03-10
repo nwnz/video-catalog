@@ -51,21 +51,23 @@ main = do args <- getArgs
             _  -> putStr "" 
               
           let files = concat filesM
+          putStrLn "Строка поиска(просто Enter для вывода всех файлов): "
           searchString <- getLine
        
           let filteredFiles = filterAviMkv searchString files
           let numFiles = length filteredFiles
           
-          putStrLn $ showWithNumbers filteredFiles
-          line <- getLine
-          
-          case getChosenNumber line numFiles of
-            Nothing -> putStrLn "Номер файла неверный"
-            Just num -> do 
-              let chosenFile = filteredFiles !! num
-              let fileName = getPlayerProg ++ " "
-                             ++ "'"
-                             ++ chosenFile 
-                             ++ "'"
-              errorNum <- system fileName
-              print "ok"
+          if numFiles /= 0
+            then do putStrLn $ showWithNumbers filteredFiles
+                    putStrLn "Введите номер запускаемого файла: "
+                    line <- getLine
+                    case getChosenNumber line numFiles of
+                      Nothing -> putStrLn "Номер файла неверный"
+                      Just num -> do let chosenFile = filteredFiles !! num
+                                     let fileName = getPlayerProg ++ " "
+                                                    ++ "'"
+                                                    ++ chosenFile
+                                                    ++ "'"
+                                     errorNum <- system fileName
+                                     print "ok"
+            else print "Результаты"
