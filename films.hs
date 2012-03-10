@@ -16,12 +16,13 @@ import qualified Codec.Binary.UTF8.String as UTF8
 isWrongDir filename = filename /= "." && filename /= ".."
 
 recursiveTraversalDir :: FilePath -> IO [FilePath]
-recursiveTraversalDir dir = do filesRaw <- getDirectoryContents dir
-                               let files = map (\x -> dir ++ "/" ++ x)
-                                           $ filter (isWrongDir) filesRaw
-                               dirs <- filterM (doesDirectoryExist) files
-                               newDirectoryContent <- mapM (recursiveTraversalDir) dirs
-                               return (dirs ++ (concat newDirectoryContent))
+recursiveTraversalDir dir = do
+  filesRaw <- getDirectoryContents dir
+  let files = map (\x -> dir ++ "/" ++ x)
+              $ filter isWrongDir filesRaw
+  dirs <- filterM doesDirectoryExist files
+  newDirectoryContent <- mapM recursiveTraversalDir dirs
+  return (dirs ++ concat newDirectoryContent)
 
 --   files <-getContentDir
 --   directories = filter (isDirectory) files
@@ -36,21 +37,29 @@ toLowStr = map toLower
 
 videoFormats = ["avi", "mkv", "mp4"]
 
-isVideoFormat fileName = or $ map (\ext -> ext `isInfixOf` name) videoFormats
+isVideoFormat fileName = any (`isSuffixOf` name) videoFormats
   where name = decode fileName
+
+decodeAndLow = toLowStr . decode
+
+isContainString fileName searchString =
+  all (\word -> decodeAndLow word `isInfixOf` name) searchWords
+  where name = decodeAndLow fileName
+        searchWords = words searchString
 
 filterAviMkv :: String -> [FilePath] -> [FilePath]
 filterAviMkv searchString list =
-  filter (\x -> toLowStr searchString `isInfixOf` toLowStr (decode x))
-  $ filter (\x -> isVideoFormat x) list
+  filter (`isContainString` searchString)
+  $ filter isVideoFormat list
 
 showWithNumbers list = concatMap (\(x,y) -> show x ++ ") " ++ decode y ++ "\n")
-            $ zip [1..numFiles] list
+            $ zip [1..numFiles] $ list
   where numFiles = length list
 
 getPlayerProg = "vlc"
 
 getChosenNumber "" max = Nothing
+
 
 getChosenNumber str max | all isDigit str
                           && num < max
@@ -60,7 +69,8 @@ getChosenNumber str max | all isDigit str
 getChosenNumber str max = Nothing
 
 getFiles fileDir = do filesRaw <- getDirectoryContents fileDir
-                      let files = map (\x -> fileDir ++ "/" ++ x) $ filter (isWrongDir) filesRaw
+                      let files = map (\x -> fileDir ++ "/" ++ x)
+                                  $ filter isWrongDir filesRaw
                       return files
 
 quoteFileName "" = ""
@@ -72,7 +82,7 @@ quoteFileName (x:xs) = case x == '\'' of
 main = do args <- getArgs
           let argDirs = args
           putStrLn "Поиск файлов. Подождите..."
-          dirs <- mapM (recursiveTraversalDir) argDirs
+          dirs <- mapM recursiveTraversalDir argDirs
           filesM <- mapM getFiles (argDirs ++ concat dirs)
           case filesM of
             [] -> fail "use: films dir1 dir2 ... dir_n"
@@ -83,7 +93,7 @@ main = do args <- getArgs
           putStrLn "Строка поиска(просто Enter для вывода всех файлов): "
           searchString <- getLine
 
-          let filteredFiles = filterAviMkv searchString files
+          let filteredFiles = sort $ filterAviMkv searchString files
           let numFiles = length filteredFiles
           if numFiles /= 0
             then do putStrLn $ showWithNumbers filteredFiles
