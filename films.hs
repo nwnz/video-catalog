@@ -3,6 +3,8 @@ import System.Environment
 import System.Directory
 import System.FilePath.Posix
 
+import Control.Monad
+
 import Data.List
 import Data.Char
 import qualified Codec.Binary.UTF8.String as UTF8
@@ -10,7 +12,17 @@ import qualified Codec.Binary.UTF8.String as UTF8
 -- myFilmDir ::FilePath
 -- myFilmDir = UTF8.encodeString $ "/media/doc/Videos/"
 
--- recursiveTraversalDir dir = 
+--- . and ..
+isWrongDir filename = filename /= "." && filename /= ".."
+
+recursiveTraversalDir :: FilePath -> IO [FilePath] 
+recursiveTraversalDir dir = do filesRaw <- getDirectoryContents dir
+                               let files = map (\x -> dir ++ "/" ++ x) 
+                                           $ filter (isWrongDir) filesRaw
+                               dirs <- filterM (doesDirectoryExist) files
+                               newDirectoryContent <- mapM (recursiveTraversalDir) dirs
+                               return (dirs ++ (concat newDirectoryContent))
+                                
 --   files <-getContentDir
 --   directories = filter (isDirectory) files
 --   newDirectoriesContent = map (recursiveTraversalDir) directories
@@ -41,11 +53,19 @@ getChosenNumber str max | all isDigit str
 getChosenNumber str max = Nothing
 
 getFiles fileDir = do filesRaw <- getDirectoryContents fileDir
-                      let files = map (fileDir ++) filesRaw
+                      let files = map (\x -> fileDir ++ "/" ++ x) $ filter (isWrongDir) filesRaw
                       return files
+                      
+quoteFileName "" = ""
+
+quoteFileName (x:xs) = case x == '\'' of
+  True -> "'\\''" ++ quoteFileName xs
+  False ->  x : quoteFileName xs
 
 main = do args <- getArgs
-          filesM <- mapM getFiles args
+          let argDirs = args
+          dirs <- mapM (recursiveTraversalDir) argDirs
+          filesM <- mapM getFiles (argDirs ++ concat dirs)
           case filesM of
             [] -> fail "use: films dir1 dir2 ... dir_n"
             _  -> putStr "" 
@@ -66,8 +86,9 @@ main = do args <- getArgs
                       Just num -> do let chosenFile = filteredFiles !! num
                                      let fileName = getPlayerProg ++ " "
                                                     ++ "'"
-                                                    ++ chosenFile
+                                                    ++ quoteFileName chosenFile
                                                     ++ "'"
+                                     putStrLn $ decode fileName
                                      errorNum <- system fileName
                                      print "ok"
             else putStrLn "Файлов с таким набором символов не найдено "
