@@ -70,4 +70,4 @@ main = do args <- getArgs
                                                     ++ "'"
                                      errorNum <- system fileName
                                      print "ok"
-            else print "Результаты"
+            else putStrLn "Файлов с таким набором символов не найдено "
