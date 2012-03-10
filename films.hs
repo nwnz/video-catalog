@@ -28,21 +28,23 @@ recursiveTraversalDir dir = do filesRaw <- getDirectoryContents dir
 --   newDirectoriesContent = map (recursiveTraversalDir) directories
 --   return $ concat newDirectoriesContent
 
-decode = UTF8.decodeString
+decode s = case UTF8.isUTF8Encoded s of
+  True -> UTF8.decodeString s
+  False -> s
 
 toLowStr = map toLower
 
 videoFormats = ["avi", "mkv", "mp4"]
 
 isVideoFormat fileName = or $ map (\ext -> ext `isInfixOf` name) videoFormats
-  where name = fileName
+  where name = decode fileName
 
 filterAviMkv :: String -> [FilePath] -> [FilePath]
 filterAviMkv searchString list =
-  filter (\x -> toLowStr searchString `isInfixOf` toLowStr x)
+  filter (\x -> toLowStr searchString `isInfixOf` toLowStr (decode x))
   $ filter (\x -> isVideoFormat x) list
 
-showWithNumbers list = concatMap (\(x,y) -> show x ++ ") " ++ y ++ "\n")
+showWithNumbers list = concatMap (\(x,y) -> show x ++ ") " ++ decode y ++ "\n")
             $ zip [1..numFiles] list
   where numFiles = length list
 
@@ -94,7 +96,7 @@ main = do args <- getArgs
                                                     ++ "'"
                                                     ++ quoteFileName chosenFile
                                                     ++ "'"
-                                     putStrLn $ fileName
+                                     putStrLn $ decode fileName
                                      errorNum <- system fileName
                                      print "ok"
             else putStrLn "Файлов с таким набором символов не найдено "
